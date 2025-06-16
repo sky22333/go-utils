@@ -153,7 +153,7 @@ func (s *Server) loadEmbeddedLogo() image.Image {
 		}
 		
 		if err == nil {
-			log.Printf("已加载内嵌logo: %s", logoFile)
+			log.Printf("使用默认logo")
 			return resizeLogo(img, 64, 64)
 		}
 	}
