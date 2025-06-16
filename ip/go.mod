@@ -1,4 +1,4 @@
-module github.com/sky22333/go-utils/ip
+module ip
 
 go 1.24.0
 

@@ -1,4 +1,4 @@
-package ips
+package main
 
 import (
 	"bytes"
