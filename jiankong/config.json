@@ -1,0 +1,8 @@
+{
+  "bot_token": "YOUR_BOT_TOKEN_HERE",
+  "chat_id": 1001234567890,
+  "report_time": "15:00",
+  "custom_message": "🖥️ 我的服务器状态报告",
+  "cpu_threshold": 80,
+  "mem_threshold": 80
+}
