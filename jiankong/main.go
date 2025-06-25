@@ -241,8 +241,6 @@ func (m *ServerMonitor) generateReport() string {
 	// 获取位置信息
 	location := m.getLocationInfo()
 	
-	// 自定义消息
-	buf.WriteString(fmt.Sprintf("*%s*\n", m.config.CustomMessage))
 	buf.WriteString(fmt.Sprintf("🌍 *服务器位置*: %s (%s)\n", location.Location, location.IP))
 	buf.WriteString(fmt.Sprintf("🕐 *更新时间*: %s\n\n", time.Now().In(time.FixedZone("CST", 8*3600)).Format("2006-01-02 15:04:05")))
 
@@ -260,10 +258,10 @@ func (m *ServerMonitor) generateReport() string {
 	if memInfo.UsedPercent > float64(m.config.MemThreshold) {
 		memIcon = "🔴"
 	}
-	buf.WriteString(fmt.Sprintf("%s *内存使用*: %.1fGB/%.1fGB (%.1f%%)\n", 
+	buf.WriteString(fmt.Sprintf("%s *内存使用*: %.1fMB/%.1fMB (%.1f%%)\n", 
 		memIcon, 
-		float64(memInfo.Used)/1024/1024/1024,
-		float64(memInfo.Total)/1024/1024/1024,
+		float64(memInfo.Used)/1024/1024,
+		float64(memInfo.Total)/1024/1024,
 		memInfo.UsedPercent))
 
 	// 磁盘信息
@@ -288,6 +286,11 @@ func (m *ServerMonitor) generateReport() string {
 	buf.WriteString(fmt.Sprintf("• 系统: %s\n", hostInfo.Platform))
 	buf.WriteString(fmt.Sprintf("• 运行时间: %s\n", m.formatUptime(hostInfo.Uptime)))
 
+	// 自定义信息内容
+	buf.WriteString("\n")
+	buf.WriteString(m.config.CustomMessage)
+	buf.WriteString("\n")
+	
 	return buf.String()
 }
 
