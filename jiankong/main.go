@@ -241,7 +241,7 @@ func (m *ServerMonitor) generateReport() string {
 	// 获取位置信息
 	location := m.getLocationInfo()
 	
-	buf.WriteString(fmt.Sprintf("🌍 *服务器位置*: %s (%s)\n", location.Location, location.IP))
+	buf.WriteString(fmt.Sprintf("🌍 *服务器位置*: %s (%s)\n", location.Location, maskIP(location.IP)))
 	buf.WriteString(fmt.Sprintf("🕐 *更新时间*: %s\n\n", time.Now().In(time.FixedZone("CST", 8*3600)).Format("2006-01-02 15:04:05")))
 
 	// CPU 信息
@@ -401,6 +401,26 @@ func (m *ServerMonitor) getLocationInfo() *LocationInfo {
 	return info
 }
 
+// IP地址脱敏
+func maskIP(ip string) string {
+	// IPv4 处理
+	if strings.Count(ip, ".") == 3 {
+		parts := strings.Split(ip, ".")
+		return "x.x.x." + parts[3]
+	}
+	// IPv6 处理，仅显示最后8位（去掉分隔符）
+	if strings.Contains(ip, ":") {
+		// 去除冒号，取8位
+		ipStripped := strings.ReplaceAll(ip, ":", "")
+		if len(ipStripped) > 8 {
+			return "..." + ipStripped[len(ipStripped)-8:]
+		}
+		return "..." + ipStripped
+	}
+	// 其它情况直接返回
+	return ip
+}
+
 // formatUptime 格式化运行时间
 func (m *ServerMonitor) formatUptime(uptime uint64) string {
 	duration := time.Duration(uptime) * time.Second
@@ -446,6 +466,7 @@ func (m *ServerMonitor) checkAndSendAlert() {
 func (m *ServerMonitor) sendMessage(message string) {
 	_, err := m.bot.Send(&telebot.Chat{ID: m.config.ChatID}, message, &telebot.SendOptions{
 		ParseMode: telebot.ModeMarkdown,
+		DisableWebPagePreview: true, // 关闭链接预览
 	})
 	if err != nil {
 		log.Printf("发送消息失败: %v", err)
