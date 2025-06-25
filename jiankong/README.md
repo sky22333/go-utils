@@ -37,47 +37,39 @@
 3. 访问 `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
 4. 在返回的 JSON 中找到 `chat.id`
 
-### 3. 配置方式
 
-#### 方式一：环境变量配置
-
-```bash
-export BOT_TOKEN="your_bot_token_here"
-export CHAT_ID="-1001234567890"
-export REPORT_TIME="15:00"
-export CUSTOM_MESSAGE="🖥️ 我的服务器状态报告"
-export CPU_THRESHOLD="80"
-export MEM_THRESHOLD="80"
-```
-
-#### 方式二：JSON 配置文件
-
-创建 `config.json` 文件：
-
-```json
-{
-  "bot_token": "your_bot_token_here",
-  "chat_id": 1001234567890,
-  "report_time": "15:00",
-  "custom_message": "🖥️ 我的服务器状态报告",
-  "cpu_threshold": 80,
-  "mem_threshold": 80
-}
-```
 
 ### 4. 部署方式
 
-#### 方式一：直接运行
+#### 方式一：系统服务运行
 
-```bash
-cd jiankong
-
-# 安装依赖
-go mod tidy
-
-# 运行程序
-go run main.go
 ```
+sudo mkdir -p /opt/jiankong && sudo wget -O /opt/jiankong/jiankong https://raw.githubusercontent.com/sky22333/go-utils/main/jiankong/jiankong && sudo chmod +x /opt/jiankong/jiankong && sudo wget -O /etc/systemd/system/jiankong.service https://raw.githubusercontent.com/sky22333/go-utils/main/jiankong/jiankong.service
+```
+然后修改`/etc/systemd/system/jiankong.service`配置
+```
+# 重载系统服务
+sudo systemctl daemon-reload
+
+# 开机自启
+sudo systemctl enable jiankong
+
+# 启动
+sudo systemctl start jiankong
+
+# 重启
+sudo systemctl restart jiankong
+
+# 查看运行状态
+sudo systemctl status jiankong
+
+# 查看实时日志
+sudo journalctl -u jiankong -f
+
+# 停止服务
+sudo systemctl stop jiankong
+```
+
 
 #### 方式二：Docker 部署
 
@@ -133,7 +125,7 @@ docker-compose up -d
 
 ### 报告内容
 
-机器人会以 Markdown 格式发送包含以下信息的报告：
+机器人会以如下格式发送包含以下信息的报告：
 
 ```
 🖥️ 服务器状态报告
