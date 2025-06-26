@@ -7,7 +7,7 @@ services:
       BOT_TOKEN: "your_bot_token_here"  # 你的 Telegram 机器人 Token，用于连接 Telegram API
       CHAT_ID: "1001234567890"  # Telegram 聊天 ID，用于发送消息的目标聊天（群组或个人）
       REPORT_TIME: "15:00"  # 每天发送状态报告的时间（24小时制）
-      CUSTOM_MESSAGE: "Docker 服务器状态报告"  # 自定义的提示消息
+      CUSTOM_MESSAGE: "服务器状态报告"  # 自定义的提示消息
       CPU_THRESHOLD: "80"  # CPU 使用率阈值，当超过此值时触发报警
       MEM_THRESHOLD: "80"  # 内存使用率阈值，当超过此值时触发报警
       TZ: "Asia/Shanghai"
