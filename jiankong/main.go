@@ -36,6 +36,7 @@ type ServerMonitor struct {
 	bot       *telebot.Bot
 	config    *Config
 	lastStats *NetStats
+	alertSent map[string]bool // 跟踪已发送的告警
 }
 
 // NetStats 网络统计
@@ -135,8 +136,9 @@ func NewServerMonitor(config *Config) (*ServerMonitor, error) {
 	}
 
 	monitor := &ServerMonitor{
-		bot:    bot,
-		config: config,
+		bot:       bot,
+		config:    config,
+		alertSent: make(map[string]bool), // 初始化告警状态
 	}
 
 	// 初始化网络统计
@@ -173,6 +175,7 @@ func (m *ServerMonitor) Start() {
 
 	// 启动定时任务
 	go m.startScheduledReport()
+	go m.startRealTimeAlert() // 启动实时告警监控
 
 	log.Printf("机器人启动成功，定时报告时间: %s", m.config.ReportTime)
 	m.bot.Start()
@@ -189,6 +192,33 @@ func (m *ServerMonitor) initNetStats() {
 		BytesSent: stats[0].BytesSent,
 		BytesRecv: stats[0].BytesRecv,
 		Timestamp: time.Now(),
+	}
+}
+
+// startRealTimeAlert 启动实时告警监控
+func (m *ServerMonitor) startRealTimeAlert() {
+	ticker := time.NewTicker(2 * time.Second) // 每2秒检查一次
+	defer ticker.Stop()
+
+	for range ticker.C {
+		cpuPercent := m.getCPUUsage()
+		memInfo := m.getMemoryInfo()
+
+		// CPU告警检查
+		if cpuPercent > float64(m.config.CPUThreshold) && !m.alertSent["cpu"] {
+			m.sendMessage(fmt.Sprintf("🚨 *CPU告警*: 使用率达到 %.1f%%", cpuPercent))
+			m.alertSent["cpu"] = true
+		} else if cpuPercent <= float64(m.config.CPUThreshold-10) { // 降低10%后重置通知
+			m.alertSent["cpu"] = false
+		}
+
+		// 内存告警检查
+		if memInfo.UsedPercent > float64(m.config.MemThreshold) && !m.alertSent["mem"] {
+			m.sendMessage(fmt.Sprintf("🚨 *内存告警*: 使用率达到 %.1f%%", memInfo.UsedPercent))
+			m.alertSent["mem"] = true
+		} else if memInfo.UsedPercent <= float64(m.config.MemThreshold-10) {
+			m.alertSent["mem"] = false
+		}
 	}
 }
 
