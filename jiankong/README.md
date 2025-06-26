@@ -81,7 +81,7 @@ docker-compose up -d
 | Bot Token | `BOT_TOKEN` | 必填 | Telegram 机器人令牌 |
 | Chat ID | `CHAT_ID` | 必填 | Telegram账户 ID |
 | 报告时间 | `REPORT_TIME` | `15:00` | 每日报告时间（24小时制） |
-| 自定义消息 | `CUSTOM_MESSAGE` | `🖥️ 服务器状态报告` | 报告标题 |
+| 自定义消息 | `CUSTOM_MESSAGE` | `某某服务状态报告` | 自定义提示信息 |
 | CPU 阈值 | `CPU_THRESHOLD` | `80` | CPU 告警阈值（百分比） |
 | 内存阈值 | `MEM_THRESHOLD` | `80` | 内存告警阈值（百分比） |
 
