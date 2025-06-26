@@ -10,7 +10,7 @@ RestartSec=10
 Environment=BOT_TOKEN=your_bot_token_here
 Environment=CHAT_ID=1001234567890
 Environment=REPORT_TIME=15:00
-Environment=CUSTOM_MESSAGE=🖥️ 服务器状态报告
+Environment=CUSTOM_MESSAGE="服务器状态报告"
 Environment=CPU_THRESHOLD=80
 Environment=MEM_THRESHOLD=80
 User=root
