@@ -2,21 +2,21 @@ services:
   jiankong:
     build: .
     container_name: jiankong
-    restart: always  # 容器始终自动重启，无论容器退出的原因
+    restart: always
     environment:
       BOT_TOKEN: "your_bot_token_here"  # 你的 Telegram 机器人 Token，用于连接 Telegram API
       CHAT_ID: "1001234567890"  # Telegram 聊天 ID，用于发送消息的目标聊天（群组或个人）
       REPORT_TIME: "15:00"  # 每天发送状态报告的时间（24小时制）
-      CUSTOM_MESSAGE: "🖥️ Docker 服务器状态报告"  # 自定义的消息标题，报告的开头部分
+      CUSTOM_MESSAGE: "Docker 服务器状态报告"  # 自定义的提示消息
       CPU_THRESHOLD: "80"  # CPU 使用率阈值，当超过此值时触发报警
       MEM_THRESHOLD: "80"  # 内存使用率阈值，当超过此值时触发报警
-      TZ: "Asia/Shanghai"  # 设置时区，这里设置为上海时间（中国时区）
+      TZ: "Asia/Shanghai"
     volumes:
-      # 如果使用配置文件，取消注释下行
-      # - ./config.json:/root/config.json:ro  # 将本地的 config.json 文件挂载到容器的 /root/config.json（只读）
-      - /proc:/host/proc:ro  # 挂载宿主机的 /proc 目录，用于获取系统信息
-      - /sys:/host/sys:ro  # 挂载宿主机的 /sys 目录，用于获取系统信息
-      - /:/rootfs:ro  # 挂载宿主机的根文件系统（只读），访问整个宿主机文件系统
-    privileged: true  # 启用特权模式，允许容器访问宿主机的系统资源
-    pid: host  # 容器共享宿主机的 PID 命名空间，能够获取宿主机的进程信息
-    network_mode: host  # 使用宿主机的网络模式，使容器可以直接访问宿主机的网络
+      # 如果使用配置文件，取消这行注释
+      # - ./config.json:/root/config.json:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    privileged: true
+    pid: host
+    network_mode: host
