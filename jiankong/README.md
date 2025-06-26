@@ -1,4 +1,4 @@
-# 服务器监控 Telegram 机器人
+### 轻量级服务器监控 Telegram 机器人
 
 一个轻量级的服务器监控程序，通过 Telegram 机器人定时上报服务器状态，支持实时查询和告警通知。
 
@@ -30,14 +30,9 @@
 3. 按提示设置机器人名称和用户名
 4. 获取 Bot Token
 
-### 2. 获取 Chat ID
+### 2. Telegram账户 ID
 
-1. 将机器人添加到群组或私聊
-2. 发送任意消息给机器人
-3. 访问 `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
-4. 在返回的 JSON 中找到 `chat.id`
-
-
+访问机器人获取：https://t.me/creationdatebot
 
 ### 4. 部署方式
 
@@ -70,33 +65,7 @@ sudo journalctl -u jiankong -f
 sudo systemctl stop jiankong
 ```
 
-
-#### 方式二：Docker 部署
-
-```bash
-# 构建镜像
-docker build -t jiankong .
-
-# 运行容器
-docker run -d \
-  --name server-monitor \
-  --restart unless-stopped \
-  --privileged \
-  --pid host \
-  --network host \
-  -e BOT_TOKEN="your_bot_token_here" \
-  -e CHAT_ID="-1001234567890" \
-  -e REPORT_TIME="15:00" \
-  -e CUSTOM_MESSAGE="🖥️ Docker 服务器状态报告" \
-  -e CPU_THRESHOLD="80" \
-  -e MEM_THRESHOLD="80" \
-  -v /proc:/host/proc:ro \
-  -v /sys:/host/sys:ro \
-  -v /:/rootfs:ro \
-  jiankong
-```
-
-#### 方式三：Docker Compose 部署
+#### 方式二：Docker Compose 部署
 
 1. 修改 `docker-compose.yml` 中的环境变量
 2. 运行：
@@ -110,7 +79,7 @@ docker-compose up -d
 | 配置项 | 环境变量 | 默认值 | 说明 |
 |--------|----------|--------|------|
 | Bot Token | `BOT_TOKEN` | 必填 | Telegram 机器人令牌 |
-| Chat ID | `CHAT_ID` | 必填 | 接收消息的聊天 ID |
+| Chat ID | `CHAT_ID` | 必填 | Telegram账户 ID |
 | 报告时间 | `REPORT_TIME` | `15:00` | 每日报告时间（24小时制） |
 | 自定义消息 | `CUSTOM_MESSAGE` | `🖥️ 服务器状态报告` | 报告标题 |
 | CPU 阈值 | `CPU_THRESHOLD` | `80` | CPU 告警阈值（百分比） |
@@ -129,15 +98,15 @@ docker-compose up -d
 
 ```
 🖥️ 服务器状态报告
-🌍 服务器位置: US (1.2.3.4)
+🌍 服务器位置: US (x.x.x.123)
 🕐 更新时间: 2025-06-26 15:00:05
 
-💚 CPU 使用率: 25.5%
-💚 内存使用: 2.1GB/8.0GB (26.3%)
-💚 磁盘使用: 45.2GB/100.0GB (45.2%)
-📊 网络流量: ↓125.67GB ↑89.34GB
+💚 CPU 使用率: 2.9%
+💚 内存使用: 206.6MB/979.0MB (21.1%)
+💚 磁盘使用: 2.5GB/9.8GB (26.3%)
+📊 网络流量: ↓0.84GB ↑0.51GB
 
 🖥️ 系统信息:
-• 系统: linux
+• 系统: debian
 • 运行时间: 15天8小时32分钟
 ```
