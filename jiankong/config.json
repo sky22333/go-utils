@@ -1,8 +1,5 @@
 {
-  "bot_token": "YOUR_BOT_TOKEN_HERE",
+  "bot_token": "1001234567890:AAH8iAAAAAAAAAAAAAAAAAA",
   "chat_id": 1001234567890,
-  "report_time": "15:00",
-  "custom_message": "服务器状态报告",
-  "cpu_threshold": 80,
-  "mem_threshold": 80
+  "admin_id": 1001234567890
 }
