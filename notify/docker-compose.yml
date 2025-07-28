@@ -6,4 +6,4 @@ services:
     ports:
       - "7000:7000"
     volumes:
-      - ./config.yaml:/root/config.yaml
+      - ./config.toml:/root/config.toml
