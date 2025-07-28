@@ -23,14 +23,14 @@ import (
 
 // Config 配置结构体
 type Config struct {
-	BotToken       string `json:"bot_token"`
-	ChatID         int64  `json:"chat_id"`
-	AdminID        int64  `json:"admin_id"`        // 管理员ID，默认与ChatID相同
-	ReportTime     string `json:"report_time"`     // 格式: 15:00
-	CustomMessage  string `json:"custom_message"`  // 自定义提示信息
-	CPUThreshold   int    `json:"cpu_threshold"`   // CPU 阈值，默认 80
-	MemThreshold   int    `json:"mem_threshold"`   // 内存阈值，默认 80
-	AlertInterval  int    `json:"alert_interval"`  // 告警间隔（分钟），默认 10
+	BotToken      string `json:"bot_token"`
+	ChatID        int64  `json:"chat_id"`
+	AdminID       int64  `json:"admin_id"`
+	ReportTime    string `json:"report_time"`
+	CustomMessage string `json:"custom_message"`
+	CPUThreshold  int    `json:"cpu_threshold"`
+	MemThreshold  int    `json:"mem_threshold"`
+	AlertInterval int    `json:"alert_interval"`
 }
 
 // UserState 用户交互状态
@@ -54,10 +54,10 @@ type ServerMonitor struct {
 	bot           *telebot.Bot
 	config        *Config
 	lastStats     *NetStats
-	lastAlertTime map[string]time.Time // 记录上次告警时间
-	userState     map[int64]*UserState // 用户交互状态
-	systemInfo    *SystemInfo          // 系统信息缓存
-	beijingTZ     *time.Location       // 北京时区
+	lastAlertTime map[string]time.Time
+	userState     map[int64]*UserState
+	systemInfo    *SystemInfo
+	beijingTZ     *time.Location
 }
 
 // NetStats 网络统计
@@ -75,33 +75,29 @@ type LocationInfo struct {
 }
 
 func main() {
-	// 加载配置
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}
 
-	// 创建监控器
 	monitor, err := NewServerMonitor(config)
 	if err != nil {
 		log.Fatalf("创建监控器失败: %v", err)
 	}
 
-	// 启动监控器
 	monitor.Start()
 }
 
 // loadConfig 加载配置
 func loadConfig() (*Config, error) {
 	config := &Config{
-		ReportTime:    "15:00", // 默认下午3点
+		ReportTime:    "15:00",
 		CPUThreshold:  80,
 		MemThreshold:  80,
-		AlertInterval: 10, // 默认10分钟告警间隔
+		AlertInterval: 10,
 		CustomMessage: "🖥️ 服务器状态报告",
 	}
 
-	// 从环境变量读取必要配置
 	if token := os.Getenv("BOT_TOKEN"); token != "" {
 		config.BotToken = token
 	}
@@ -116,14 +112,12 @@ func loadConfig() (*Config, error) {
 		}
 	}
 
-	// 从 config.json 读取基础配置
 	if data, err := os.ReadFile("config.json"); err == nil {
 		if err := json.Unmarshal(data, config); err != nil {
 			log.Printf("解析 config.json 失败: %v", err)
 		}
 	}
 
-	// 从用户配置文件读取可配置项（优先级最高）
 	if data, err := os.ReadFile("user_config.json"); err == nil {
 		var userConfig map[string]interface{}
 		if err := json.Unmarshal(data, &userConfig); err == nil {
@@ -174,16 +168,19 @@ func NewServerMonitor(config *Config) (*ServerMonitor, error) {
 		return nil, err
 	}
 
+	bot.SetCommands([]telebot.Command{
+		{Text: "start", Description: "开始使用"},
+	})
+
 	monitor := &ServerMonitor{
 		bot:           bot,
 		config:        config,
-		lastAlertTime: make(map[string]time.Time), // 初始化告警时间记录
-		userState:     make(map[int64]*UserState), // 初始化用户状态
-		systemInfo:    &SystemInfo{},              // 初始化系统信息缓存
-		beijingTZ:     time.FixedZone("CST", 8*3600), // 北京时区
+		lastAlertTime: make(map[string]time.Time),
+		userState:     make(map[int64]*UserState),
+		systemInfo:    &SystemInfo{},
+		beijingTZ:     time.FixedZone("CST", 8*3600),
 	}
 
-	// 初始化网络统计
 	monitor.initNetStats()
 
 	return monitor, nil
@@ -194,10 +191,8 @@ func (m *ServerMonitor) isAdmin(userID int64) bool {
 	return userID == m.config.AdminID
 }
 
-
 // Start 启动监控器
 func (m *ServerMonitor) Start() {
-	// 设置主菜单按钮
 	mainMenu := &telebot.ReplyMarkup{}
 	btnStatus := mainMenu.Data("📊 实时状态", "status")
 	btnConfig := mainMenu.Data("⚙️ 配置设置", "config")
@@ -206,7 +201,6 @@ func (m *ServerMonitor) Start() {
 		mainMenu.Row(btnConfig),
 	)
 
-	// 设置配置菜单按钮
 	configMenu := &telebot.ReplyMarkup{}
 	btnReportTime := configMenu.Data("⏰ 报告时间", "set_report_time")
 	btnCustomMsg := configMenu.Data("💬 自定义消息", "set_custom_message")
@@ -221,20 +215,17 @@ func (m *ServerMonitor) Start() {
 		configMenu.Row(btnBack),
 	)
 
-	// 处理 /start 命令
 	m.bot.Handle("/start", m.createAsyncHandler(func(c telebot.Context) error {
 		msg := m.getMainMenuMessage()
 		return c.Send(msg, mainMenu)
 	}))
 
-	// 处理实时状态按钮（异步）
 	m.bot.Handle(&btnStatus, m.createAsyncHandler(func(c telebot.Context) error {
-		m.updateSystemInfo() // 更新系统信息缓存
+		m.updateSystemInfo()
 		report := m.generateReport()
 		return c.Edit(report, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown}, mainMenu)
 	}))
 
-	// 处理配置按钮（需要管理员权限）
 	m.bot.Handle(&btnConfig, func(c telebot.Context) error {
 		if !m.isAdmin(c.Sender().ID) {
 			return c.Send("❌ 权限不足，只有管理员可以执行此操作")
@@ -243,13 +234,11 @@ func (m *ServerMonitor) Start() {
 		return c.Edit(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown}, configMenu)
 	})
 
-	// 处理返回主菜单按钮（异步）
 	m.bot.Handle(&btnBack, m.createAsyncHandler(func(c telebot.Context) error {
 		msg := m.getMainMenuMessage()
 		return c.Edit(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown}, mainMenu)
 	}))
 
-	// 配置项按钮处理（使用统一的处理器）
 	configHandlers := map[*telebot.Btn]struct {
 		configType string
 		prompt     string
@@ -273,28 +262,24 @@ func (m *ServerMonitor) Start() {
 		})
 	}
 
-	// 处理文本消息（用于配置输入，需要管理员权限）
 	m.bot.Handle(telebot.OnText, func(c telebot.Context) error {
-		// 检查是否在配置状态
 		chatID := c.Chat().ID
 		state, exists := m.userState[chatID]
 		if !exists || state.WaitingFor == "" {
-			return nil // 不在配置状态，忽略消息
+			return nil
 		}
-		
-		// 检查管理员权限
+
 		if !m.isAdmin(c.Sender().ID) {
-			delete(m.userState, chatID) // 清除非管理员的配置状态
+			delete(m.userState, chatID)
 			return c.Send("❌ 权限不足，只有管理员可以修改配置")
 		}
-		
+
 		return m.handleConfigInput(c, mainMenu, configMenu)
 	})
 
-	// 启动定时任务
 	go m.startScheduledReport()
-	go m.startRealTimeAlert() // 启动实时告警监控
-	go m.startSystemInfoUpdater() // 启动系统信息定期更新
+	go m.startRealTimeAlert()
+	go m.startSystemInfoUpdater()
 
 	log.Printf("机器人启动成功，定时报告时间: %s", m.config.ReportTime)
 	m.bot.Start()
@@ -317,12 +302,10 @@ func (m *ServerMonitor) initNetStats() {
 // updateSystemInfo 更新系统信息缓存
 func (m *ServerMonitor) updateSystemInfo() {
 	now := time.Now()
-	// 如果缓存时间小于10秒，直接返回缓存数据
 	if now.Sub(m.systemInfo.UpdateTime) < 10*time.Second {
 		return
 	}
 
-	// 并发获取系统信息
 	type result struct {
 		cpu      float64
 		mem      *mem.VirtualMemoryStat
@@ -333,11 +316,10 @@ func (m *ServerMonitor) updateSystemInfo() {
 	}
 
 	resultChan := make(chan result, 1)
-	
+
 	go func() {
 		var r result
-		
-		// 并发获取各项信息
+
 		cpuChan := make(chan float64, 1)
 		memChan := make(chan *mem.VirtualMemoryStat, 1)
 		diskChan := make(chan *disk.UsageStat, 1)
@@ -362,7 +344,6 @@ func (m *ServerMonitor) updateSystemInfo() {
 		resultChan <- r
 	}()
 
-	// 等待结果或超时
 	select {
 	case r := <-resultChan:
 		m.systemInfo = &SystemInfo{
@@ -379,11 +360,9 @@ func (m *ServerMonitor) updateSystemInfo() {
 	}
 }
 
-// formatBeijingTime 格式化北京时间
 func (m *ServerMonitor) formatBeijingTime(t time.Time) string {
 	return t.In(m.beijingTZ).Format("2006-01-02 15:04:05")
 }
-
 
 // createAsyncHandler 创建异步处理器
 func (m *ServerMonitor) createAsyncHandler(handler func(telebot.Context) error) func(telebot.Context) error {
@@ -399,7 +378,7 @@ func (m *ServerMonitor) createAsyncHandler(handler func(telebot.Context) error) 
 
 // startSystemInfoUpdater 启动系统信息定期更新器
 func (m *ServerMonitor) startSystemInfoUpdater() {
-	ticker := time.NewTicker(10 * time.Second) // 每10秒更新一次系统信息，保持数据实时性
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -421,12 +400,9 @@ func (m *ServerMonitor) startRealTimeAlert() {
 func (m *ServerMonitor) checkAndSendRealTimeAlert() {
 	now := time.Now()
 	alertInterval := time.Duration(m.config.AlertInterval) * time.Minute
-
-	// 直接获取实时系统信息，不使用缓存
 	cpuPercent := m.getCPUUsage()
 	memInfo := m.getMemoryInfo()
 
-	// CPU告警检查
 	if cpuPercent > float64(m.config.CPUThreshold) {
 		if m.shouldSendAlert("cpu", now, alertInterval) {
 			alertMsg := fmt.Sprintf("🚨 *CPU告警*\n\n"+
@@ -436,13 +412,12 @@ func (m *ServerMonitor) checkAndSendRealTimeAlert() {
 				cpuPercent,
 				m.config.CPUThreshold,
 				m.formatBeijingTime(now))
-			go m.sendMessage(alertMsg) // 异步发送消息
+			go m.sendMessage(alertMsg)
 			m.lastAlertTime["cpu"] = now
 			log.Printf("发送CPU告警: %.1f%%", cpuPercent)
 		}
 	}
 
-	// 内存告警检查
 	if memInfo.UsedPercent > float64(m.config.MemThreshold) {
 		if m.shouldSendAlert("mem", now, alertInterval) {
 			alertMsg := fmt.Sprintf("🚨 *内存告警*\n\n"+
@@ -455,7 +430,7 @@ func (m *ServerMonitor) checkAndSendRealTimeAlert() {
 				float64(memInfo.Total)/1024/1024,
 				m.config.MemThreshold,
 				m.formatBeijingTime(now))
-			go m.sendMessage(alertMsg) // 异步发送消息
+			go m.sendMessage(alertMsg)
 			m.lastAlertTime["mem"] = now
 			log.Printf("发送内存告警: %.1f%%", memInfo.UsedPercent)
 		}
@@ -473,8 +448,6 @@ func (m *ServerMonitor) startScheduledReport() {
 	for {
 		now := time.Now()
 		beijingTime := now.In(m.beijingTZ)
-		
-		// 解析报告时间
 		reportTime, err := time.Parse("15:04", m.config.ReportTime)
 		if err != nil {
 			log.Printf("解析报告时间失败: %v", err)
@@ -482,27 +455,23 @@ func (m *ServerMonitor) startScheduledReport() {
 			continue
 		}
 
-		// 设置今天的报告时间
 		targetTime := time.Date(
 			beijingTime.Year(), beijingTime.Month(), beijingTime.Day(),
 			reportTime.Hour(), reportTime.Minute(), 0, 0,
 			m.beijingTZ,
 		)
 
-		// 如果已经过了今天的报告时间，设置为明天的报告时间
 		if beijingTime.After(targetTime) {
 			targetTime = targetTime.Add(24 * time.Hour)
 		}
 
-		// 计算等待时间
 		waitDuration := targetTime.Sub(beijingTime)
 		log.Printf("下次报告时间: %s (等待 %v)", targetTime.Format("2006-01-02 15:04:05"), waitDuration)
 
 		time.Sleep(waitDuration)
 
-		// 异步发送报告
 		go func() {
-			m.updateSystemInfo() // 确保使用最新的系统信息
+			m.updateSystemInfo()
 			report := m.generateReport()
 			m.sendScheduledReport(report)
 		}()
@@ -513,45 +482,38 @@ func (m *ServerMonitor) startScheduledReport() {
 func (m *ServerMonitor) generateReport() string {
 	var buf bytes.Buffer
 
-	// 使用缓存的系统信息
 	info := m.systemInfo
-	
+
 	buf.WriteString(fmt.Sprintf("🌍 *服务器位置*: %s (%s)\n", info.LocationInfo.Location, maskIP(info.LocationInfo.IP)))
 	buf.WriteString(fmt.Sprintf("🕐 *更新时间*: %s\n\n", m.formatBeijingTime(time.Now())))
 
-	// CPU 信息
 	cpuIcon := m.getStatusIcon(info.CPUPercent, float64(m.config.CPUThreshold))
 	buf.WriteString(fmt.Sprintf("%s *CPU 使用率*: %.1f%%\n", cpuIcon, info.CPUPercent))
 
-	// 内存信息
 	memIcon := m.getStatusIcon(info.MemInfo.UsedPercent, float64(m.config.MemThreshold))
-	buf.WriteString(fmt.Sprintf("%s *内存使用*: %.1fMB/%.1fMB (%.1f%%)\n", 
-		memIcon, 
+	buf.WriteString(fmt.Sprintf("%s *内存使用*: %.1fMB/%.1fMB (%.1f%%)\n",
+		memIcon,
 		float64(info.MemInfo.Used)/1024/1024,
 		float64(info.MemInfo.Total)/1024/1024,
 		info.MemInfo.UsedPercent))
 
-	// 磁盘信息
 	diskIcon := m.getStatusIcon(info.DiskInfo.UsedPercent, 80)
-	buf.WriteString(fmt.Sprintf("%s *磁盘使用*: %.1fGB/%.1fGB (%.1f%%)\n", 
+	buf.WriteString(fmt.Sprintf("%s *磁盘使用*: %.1fGB/%.1fGB (%.1f%%)\n",
 		diskIcon,
 		float64(info.DiskInfo.Used)/1024/1024/1024,
 		float64(info.DiskInfo.Total)/1024/1024/1024,
 		info.DiskInfo.UsedPercent))
 
-	// 网络流量信息
 	buf.WriteString(fmt.Sprintf("📊 *网络流量*: ↓%.2fGB ↑%.2fGB\n", info.NetInfo.RecvGB, info.NetInfo.SentGB))
 
-	// 系统信息
 	buf.WriteString(fmt.Sprintf("\n🖥️ *系统信息*:\n"))
 	buf.WriteString(fmt.Sprintf("• 系统: %s\n", info.HostInfo.Platform))
 	buf.WriteString(fmt.Sprintf("• 运行时间: %s\n", m.formatUptime(info.HostInfo.Uptime)))
 
-	// 自定义信息内容
 	buf.WriteString("\n")
 	buf.WriteString(m.config.CustomMessage)
 	buf.WriteString("\n")
-	
+
 	return buf.String()
 }
 
@@ -649,7 +611,7 @@ func (m *ServerMonitor) getLocationInfo() *LocationInfo {
 
 	lines := strings.Split(string(body), "\n")
 	info := &LocationInfo{}
-	
+
 	for _, line := range lines {
 		if strings.HasPrefix(line, "ip=") {
 			info.IP = strings.TrimPrefix(line, "ip=")
@@ -672,21 +634,18 @@ func (m *ServerMonitor) getLocationInfo() *LocationInfo {
 
 // IP地址脱敏
 func maskIP(ip string) string {
-	// IPv4 处理
 	if strings.Count(ip, ".") == 3 {
 		parts := strings.Split(ip, ".")
 		return "x.x.x." + parts[3]
 	}
-	// IPv6 处理，仅显示最后8位（去掉分隔符）
 	if strings.Contains(ip, ":") {
-		// 去除冒号，取8位
 		ipStripped := strings.ReplaceAll(ip, ":", "")
 		if len(ipStripped) > 8 {
 			return "..." + ipStripped[len(ipStripped)-8:]
 		}
 		return "..." + ipStripped
 	}
-	// 其它情况直接返回
+
 	return ip
 }
 
@@ -706,12 +665,10 @@ func (m *ServerMonitor) formatUptime(uptime uint64) string {
 	}
 }
 
-
-
 // sendMessage 发送消息
 func (m *ServerMonitor) sendMessage(message string) {
 	_, err := m.bot.Send(&telebot.Chat{ID: m.config.ChatID}, message, &telebot.SendOptions{
-		ParseMode: telebot.ModeMarkdown,
+		ParseMode:             telebot.ModeMarkdown,
 		DisableWebPagePreview: true, // 关闭链接预览
 	})
 	if err != nil {
@@ -719,10 +676,10 @@ func (m *ServerMonitor) sendMessage(message string) {
 	}
 }
 
-// sendScheduledReport 发送定时报告（不受告警间隔限制）
+// sendScheduledReport 发送定时报告
 func (m *ServerMonitor) sendScheduledReport(message string) {
 	_, err := m.bot.Send(&telebot.Chat{ID: m.config.ChatID}, message, &telebot.SendOptions{
-		ParseMode: telebot.ModeMarkdown,
+		ParseMode:             telebot.ModeMarkdown,
 		DisableWebPagePreview: true, // 关闭链接预览
 	})
 	if err != nil {
@@ -770,7 +727,7 @@ func (m *ServerMonitor) handleConfigInput(c telebot.Context, mainMenu, configMen
 	chatID := c.Chat().ID
 	state, exists := m.userState[chatID]
 	if !exists || state.WaitingFor == "" {
-		return nil // 不在配置状态，忽略消息
+		return nil
 	}
 
 	input := strings.TrimSpace(c.Text())
@@ -819,32 +776,25 @@ func (m *ServerMonitor) handleConfigInput(c telebot.Context, mainMenu, configMen
 		}
 	}
 
-	// 清除用户状态
 	delete(m.userState, chatID)
 
 	if success {
-		// 保存配置到文件
 		m.saveConfig()
-		
-		// 发送成功消息并显示配置菜单
+
 		msg := fmt.Sprintf("✅ 配置已更新！\n\n%s", m.getConfigMenuMessage())
 		return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown}, configMenu)
 	} else {
-		// 发送错误消息并显示配置菜单
 		msg := fmt.Sprintf("%s\n\n%s", errorMsg, m.getConfigMenuMessage())
 		return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown}, configMenu)
 	}
 }
 
-// validateTimeFormat 验证时间格式
 func (m *ServerMonitor) validateTimeFormat(timeStr string) bool {
 	_, err := time.Parse("15:04", timeStr)
 	return err == nil
 }
 
-// saveConfig 保存配置到文件
 func (m *ServerMonitor) saveConfig() {
-	// 只保存可配置的项目，不保存敏感信息
 	configData := map[string]interface{}{
 		"report_time":    m.config.ReportTime,
 		"custom_message": m.config.CustomMessage,
