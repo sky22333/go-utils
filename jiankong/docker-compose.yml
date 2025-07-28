@@ -9,8 +9,6 @@ services:
       ADMIN_ID: "1001234567890"  # 管理员 ID，用于权限控制（默认与 CHAT_ID 相同）
       TZ: "Asia/Shanghai"
     volumes:
-      # 如果使用配置文件，取消这行注释
-      # - ./config.json:/root/config.json:ro
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
