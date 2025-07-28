@@ -4,16 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       build_context:
-        description: 'Build context path (构建上下文路径)'
+        description: 'Build context path (构建上下文路径，例如: . 或 ./src 或 ./app/backend)'
         required: true
         default: '.'
-        type: choice
-        options:
-          - '.'
-          - './node'
-          - './python'
-          - './java'
-          - './go'
       version:
         description: 'Version number (版本号)'
         required: true
@@ -31,22 +24,32 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Set build context and version
+      - name: Set build context and generate tag
         run: |
           BUILD_CONTEXT="${{ github.event.inputs.build_context }}"
           VERSION="${{ github.event.inputs.version }}"
           
-          # 根据构建上下文自动设置默认版本
-          if [ "$VERSION" = "latest" ] && [ "$BUILD_CONTEXT" != "." ]; then
-            # 从路径中提取目录名作为版本前缀
-            CONTEXT_NAME=$(basename "$BUILD_CONTEXT")
-            VERSION="${CONTEXT_NAME}-latest"
+          # 处理构建上下文路径，生成tag前缀
+          if [ "$BUILD_CONTEXT" = "." ]; then
+            # 根目录，不添加前缀
+            TAG_PREFIX=""
+          else
+            # 去掉开头的 ./ 并将路径分隔符替换为连字符
+            TAG_PREFIX=$(echo "$BUILD_CONTEXT" | sed 's|^\.\/||' | sed 's|\/|-|g')
+            TAG_PREFIX="${TAG_PREFIX}-"
+          fi
+          
+          # 生成最终的tag
+          if [ "$VERSION" = "latest" ]; then
+            FINAL_TAG="${TAG_PREFIX}latest"
+          else
+            FINAL_TAG="${TAG_PREFIX}${VERSION}"
           fi
           
           echo "BUILD_CONTEXT=$BUILD_CONTEXT" >> $GITHUB_ENV
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "FINAL_TAG=$FINAL_TAG" >> $GITHUB_ENV
           echo "构建上下文: $BUILD_CONTEXT"
-          echo "构建版本: $VERSION"
+          echo "生成的标签: $FINAL_TAG"
             
       - name: Log in to GitHub Docker Registry
         uses: docker/login-action@v3
@@ -58,9 +61,9 @@ jobs:
       - name: Build and push Docker image
         run: |
           docker buildx build --push \
-            --platform linux/amd64,linux/arm64 \
-            --tag ghcr.io/${{ github.repository }}:${{ env.VERSION }} \
-            --build-arg VERSION=${{ env.VERSION }} \
+            --platform linux/amd64 \
+            --tag ghcr.io/${{ github.repository }}:${{ env.FINAL_TAG }} \
+            --build-arg VERSION=${{ env.FINAL_TAG }} \
             ${{ env.BUILD_CONTEXT }}
         env:
           GHCR_PUBLIC: true
