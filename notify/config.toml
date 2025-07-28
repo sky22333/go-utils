@@ -1,0 +1,7 @@
+tg_bot_token = "1234567:AAAAAAAAAAAAAAAAAAAAA"
+tg_admin_id = 12345678
+post_auth_token = "yourtoken"
+listen_addr = ":7000"
+data_file = "data.json"
+max_file_size = 200
+socks_proxy = ""
