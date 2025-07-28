@@ -444,6 +444,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"ok"}`))
 }
 
+// 权限检查函数
+func isAdmin(userID int64) bool {
+	return userID == cfg.TGAdminID
+}
+
 func setupBotHandlers() {
 	startBtn := tb.InlineButton{Unique: "start_btn", Text: "📊 最近数据"}
 	queryBtn := tb.InlineButton{Unique: "query_btn", Text: "🔍 时间查询"}
@@ -452,6 +457,9 @@ func setupBotHandlers() {
 	backBtn := tb.InlineButton{Unique: "back_btn", Text: "🔙 返回主菜单"}
 
 	bot.Handle("/start", func(c tb.Context) error {
+		if !isAdmin(c.Sender().ID) {
+			return c.Send("❌ 权限不足，仅管理员可使用此机器人")
+		}
 		userStates.Delete(c.Sender().ID) // 清除用户状态
 		markup := &tb.ReplyMarkup{
 			InlineKeyboard: [][]tb.InlineButton{
@@ -463,6 +471,9 @@ func setupBotHandlers() {
 	})
 
 	bot.Handle(&statusBtn, func(c tb.Context) error {
+		if !isAdmin(c.Sender().ID) {
+			return c.Edit("❌ 权限不足")
+		}
 		data, err := loadAllData()
 		if err != nil {
 			return c.Edit("❌ 读取数据失败：" + err.Error())
@@ -506,6 +517,9 @@ func setupBotHandlers() {
 	})
 
 	bot.Handle(&backBtn, func(c tb.Context) error {
+		if !isAdmin(c.Sender().ID) {
+			return c.Edit("❌ 权限不足")
+		}
 		userStates.Delete(c.Sender().ID)
 		markup := &tb.ReplyMarkup{
 			InlineKeyboard: [][]tb.InlineButton{
@@ -517,6 +531,9 @@ func setupBotHandlers() {
 	})
 
 	bot.Handle(&startBtn, func(c tb.Context) error {
+		if !isAdmin(c.Sender().ID) {
+			return c.Edit("❌ 权限不足")
+		}
 		data, err := loadRecentData(20)
 		if err != nil {
 			markup := &tb.ReplyMarkup{
@@ -539,6 +556,9 @@ func setupBotHandlers() {
 	})
 
 	bot.Handle(&queryBtn, func(c tb.Context) error {
+		if !isAdmin(c.Sender().ID) {
+			return c.Edit("❌ 权限不足")
+		}
 		userStates.Store(c.Sender().ID, "query")
 		markup := &tb.ReplyMarkup{
 			InlineKeyboard: [][]tb.InlineButton{{backBtn}},
@@ -550,6 +570,9 @@ func setupBotHandlers() {
 	})
 
 	bot.Handle(&cleanBtn, func(c tb.Context) error {
+		if !isAdmin(c.Sender().ID) {
+			return c.Edit("❌ 权限不足")
+		}
 		userStates.Store(c.Sender().ID, "clean")
 		markup := &tb.ReplyMarkup{
 			InlineKeyboard: [][]tb.InlineButton{{backBtn}},
@@ -561,6 +584,10 @@ func setupBotHandlers() {
 	})
 
 	bot.Handle(tb.OnText, func(c tb.Context) error {
+		if !isAdmin(c.Sender().ID) {
+			return c.Send("❌ 权限不足，仅管理员可使用此机器人")
+		}
+		
 		txt := strings.TrimSpace(c.Text())
 		userID := c.Sender().ID
 
@@ -632,6 +659,10 @@ func setupBotHandlers() {
 
 	// 处理清理确认按钮
 	bot.Handle(tb.OnCallback, func(c tb.Context) error {
+		if !isAdmin(c.Sender().ID) {
+			return c.Edit("❌ 权限不足")
+		}
+		
 		data := c.Callback().Data
 		if strings.HasPrefix(data, "confirm_clean_") {
 			// 解析时间范围
