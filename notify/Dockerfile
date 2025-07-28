@@ -9,6 +9,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -trimpath -o notify .
 
 FROM alpine
 
+RUN apk --no-cache add tzdata ca-certificates
+ENV TZ=Asia/Shanghai
+
 WORKDIR /root/
 
 COPY --from=builder /app/notify .
