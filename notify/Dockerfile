@@ -1,7 +1,7 @@
 FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
-COPY go.mod go.sum ./
+COPY go.mod go.sum .
 RUN go mod download
 
 COPY . .
@@ -12,7 +12,7 @@ FROM alpine
 RUN apk --no-cache add tzdata ca-certificates
 ENV TZ=Asia/Shanghai
 
-WORKDIR /root/
+WORKDIR /root
 
 COPY --from=builder /app/notify .
 COPY --from=builder /app/config.toml .
