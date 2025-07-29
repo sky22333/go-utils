@@ -60,8 +60,8 @@ sudo systemctl stop jiankong
 | 配置项 | 环境变量 | 默认值 | 说明 |
 |--------|----------|--------|------|
 | Bot Token | `BOT_TOKEN` | 必填 | Telegram 机器人令牌 |
-| Chat ID | `CHAT_ID` | 必填 | Telegram账户 ID |
-| Admin ID | `ADMIN_ID` | 与CHAT_ID相同 | 管理员 ID，用于权限控制 |
+| Chat ID | `CHAT_ID` | 必填 | 账户ID 或者 群组ID，用于接收通知信息 |
+| Admin ID | `ADMIN_ID` | 必填 | 管理员 ID，用于权限控制 |
 
 
 ## 使用说明
