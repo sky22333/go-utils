@@ -61,7 +61,7 @@ sudo systemctl stop jiankong
 |--------|----------|--------|------|
 | Bot Token | `BOT_TOKEN` | 必填 | Telegram 机器人令牌 |
 | Chat ID | `CHAT_ID` | 必填 | 账户ID 或者 群组ID，用于接收通知信息 |
-| Admin ID | `ADMIN_ID` | 必填 | 管理员 ID，用于按钮的权限控制 |
+| Admin ID | `ADMIN_ID` | 必填 | 账户ID，用于按钮的权限控制 |
 
 
 ## 使用说明
