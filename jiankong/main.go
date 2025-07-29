@@ -35,8 +35,7 @@ type Config struct {
 
 // UserState 用户交互状态
 type UserState struct {
-	WaitingFor string // 等待用户输入的类型: "report_time", "custom_message", "cpu_threshold", "mem_threshold", "alert_interval"
-}
+	WaitingFor string // 等待用户输入的类型
 
 // SystemInfo 系统信息缓存
 type SystemInfo struct {
