@@ -8,7 +8,7 @@ RUN go mod download
 
 COPY main.go .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jiankong .
 
 FROM alpine:latest
 
@@ -18,6 +18,6 @@ RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo "Asia/Shanghai" 
 
 WORKDIR /root
 
-COPY --from=builder /app/main .
+COPY --from=builder /app/jiankong .
 
-CMD ["./main"]
+CMD ["./jiankong"]
