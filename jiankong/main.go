@@ -35,7 +35,8 @@ type Config struct {
 
 // UserState 用户交互状态
 type UserState struct {
-	WaitingFor string // 等待用户输入的类型
+	WaitingFor string
+}
 
 // SystemInfo 系统信息缓存
 type SystemInfo struct {
