@@ -21,10 +21,11 @@ var (
 )
 
 const (
-	TOKEN_QUERY    = 0x0008
-	TokenElevation = 20
-	SW_HIDE        = 0
-	SW_SHOW        = 5
+	TOKEN_QUERY         = 0x0008
+	TOKEN_ELEVATION     = 20
+	SW_HIDE            = 0
+	SW_SHOW            = 5
+	ERROR_ELEVATION_REQUIRED = 740
 )
 
 type tokenElevation struct {
@@ -35,13 +36,13 @@ func main() {
 	fmt.Println("Windows L2TP配置工具")
 	
 	// 检查是否以管理员权限运行
-	if !isAdmin() {
-		fmt.Println("正在请求管理员权限...")
-		elevatePrivileges()
+	if !isRunningAsAdmin() {
+		fmt.Println("需要管理员权限，正在请求提升权限...")
+		requestAdminPrivileges()
 		return
 	}
 
-	fmt.Println("开始配置...")
+	fmt.Println("管理员权限确认，开始配置...")
 
 	// 执行配置步骤
 	step1Success := configureFirewall()
@@ -66,57 +67,54 @@ func main() {
 	fmt.Scanln()
 }
 
-func isAdmin() bool {
-	process := procGetCurrentProcess.Addr()
-	var token syscall.Handle
-	
-	ret, _, _ := procOpenProcessToken.Call(
-		uintptr(process),
-		TOKEN_QUERY,
-		uintptr(unsafe.Pointer(&token)),
-	)
-	
-	if ret == 0 {
-		return false
-	}
-	defer syscall.CloseHandle(token)
-	
-	var elevation tokenElevation
-	var returnedLen uint32
-	
-	ret, _, _ = procGetTokenInfo.Call(
-		uintptr(token),
-		TokenElevation,
-		uintptr(unsafe.Pointer(&elevation)),
-		unsafe.Sizeof(elevation),
-		uintptr(unsafe.Pointer(&returnedLen)),
-	)
-	
-	if ret == 0 {
-		return false
-	}
-	
-	return elevation.TokenIsElevated != 0
+// 改进的管理员权限检测
+func isRunningAsAdmin() bool {
+	// 尝试执行一个需要管理员权限的操作来测试
+	cmd := exec.Command("net", "session")
+	err := cmd.Run()
+	return err == nil
 }
 
-func elevatePrivileges() {
-	exe, _ := os.Executable()
+// 请求管理员权限
+func requestAdminPrivileges() {
+	exe, err := os.Executable()
+	if err != nil {
+		fmt.Printf("获取可执行文件路径失败: %v\n", err)
+		fmt.Println("按任意键退出...")
+		fmt.Scanln()
+		return
+	}
 	
-	procShellExecuteW.Call(
+	// 使用 runas 动词启动具有管理员权限的新实例
+	verb := syscall.StringToUTF16Ptr("runas")
+	file := syscall.StringToUTF16Ptr(exe)
+	
+	ret, _, _ := procShellExecuteW.Call(
 		0,
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("runas"))),
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(exe))),
+		uintptr(unsafe.Pointer(verb)),
+		uintptr(unsafe.Pointer(file)),
 		0,
 		0,
 		SW_SHOW,
 	)
+	
+	// 检查 ShellExecute 是否成功
+	if ret <= 32 {
+		fmt.Println("权限提升被取消或失败")
+		fmt.Println("按任意键退出...")
+		fmt.Scanln()
+	}
 }
 
 func configureFirewall() bool {
-	fmt.Println("配置防火墙...")
+	fmt.Println("步骤1: 配置防火墙...")
 	
-	// 使用netsh命令配置防火墙规则
-	cmd := exec.Command("netsh", "advfirewall", "firewall", "add", "rule", 
+	// 先删除可能存在的同名规则
+	cmd := exec.Command("netsh", "advfirewall", "firewall", "delete", "rule", "name=L2TP-Out")
+	cmd.Run() // 忽略错误
+	
+	// 添加新规则
+	cmd = exec.Command("netsh", "advfirewall", "firewall", "add", "rule", 
 		"name=L2TP-Out", "dir=out", "action=allow", "protocol=UDP", "localport=1701")
 	
 	err := cmd.Run()
@@ -130,31 +128,42 @@ func configureFirewall() bool {
 }
 
 func configureIPSecService() bool {
-	fmt.Println("配置IPsec服务...")
+	fmt.Println("步骤2: 配置IPsec服务...")
 	
 	// 设置服务启动类型为自动
 	cmd := exec.Command("sc", "config", "PolicyAgent", "start=auto")
 	err := cmd.Run()
 	if err != nil {
-		fmt.Printf("   失败: %v\n", err)
+		fmt.Printf("   配置服务失败: %v\n", err)
 		return false
 	}
 	
-	// 启动服务
+	// 尝试启动服务
 	cmd = exec.Command("sc", "start", "PolicyAgent")
-	cmd.Run() // 忽略错误，因为服务可能已经在运行
+	err = cmd.Run()
+	if err != nil {
+		// 检查服务是否已经在运行
+		cmd = exec.Command("sc", "query", "PolicyAgent")
+		if cmd.Run() == nil {
+			fmt.Println("   成功")
+			return true
+		} else {
+			fmt.Printf("   启动服务失败: %v\n", err)
+			return false
+		}
+	}
 	
 	fmt.Println("   成功")
 	return true
 }
 
 func openRegistryKey() bool {
-	fmt.Println("访问注册表...")
+	fmt.Println("步骤3: 访问注册表...")
 	
 	// 尝试打开注册表项以验证访问权限
 	key, err := registry.OpenKey(registry.LOCAL_MACHINE, 
 		`System\CurrentControlSet\Services\Rasman\Parameters`, 
-		registry.ALL_ACCESS)
+		registry.QUERY_VALUE)
 	if err != nil {
 		fmt.Printf("   失败: %v\n", err)
 		return false
@@ -166,20 +175,20 @@ func openRegistryKey() bool {
 }
 
 func modifyAllowL2TPWeakCrypto() bool {
-	fmt.Println("修改AllowL2TPWeakCrypto...")
+	fmt.Println("步骤4: 修改AllowL2TPWeakCrypto...")
 	
 	key, err := registry.OpenKey(registry.LOCAL_MACHINE, 
 		`System\CurrentControlSet\Services\Rasman\Parameters`, 
 		registry.SET_VALUE)
 	if err != nil {
-		fmt.Printf("   失败: %v\n", err)
+		fmt.Printf("   打开注册表失败: %v\n", err)
 		return false
 	}
 	defer key.Close()
 	
 	err = key.SetDWordValue("AllowL2TPWeakCrypto", 1)
 	if err != nil {
-		fmt.Printf("   失败: %v\n", err)
+		fmt.Printf("   设置值失败: %v\n", err)
 		return false
 	}
 	
@@ -188,20 +197,20 @@ func modifyAllowL2TPWeakCrypto() bool {
 }
 
 func createProhibitIPSec() bool {
-	fmt.Println("创建ProhibitIpSec...")
+	fmt.Println("步骤5: 创建ProhibitIpSec...")
 	
 	key, err := registry.OpenKey(registry.LOCAL_MACHINE, 
 		`System\CurrentControlSet\Services\Rasman\Parameters`, 
 		registry.SET_VALUE)
 	if err != nil {
-		fmt.Printf("   失败: %v\n", err)
+		fmt.Printf("   打开注册表失败: %v\n", err)
 		return false
 	}
 	defer key.Close()
 	
 	err = key.SetDWordValue("ProhibitIpSec", 1)
 	if err != nil {
-		fmt.Printf("   失败: %v\n", err)
+		fmt.Printf("   创建值失败: %v\n", err)
 		return false
 	}
 	
