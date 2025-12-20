@@ -47,7 +47,7 @@ var cfg Config
 type PayTypeCache struct {
 	sync.RWMutex
 	mapping map[string]string
-	dsn     string // 保存 DSN 用于惰性加载
+	dsn     string
 }
 
 func NewPayTypeCache() *PayTypeCache {
@@ -56,7 +56,7 @@ func NewPayTypeCache() *PayTypeCache {
 
 // Load 加载支付方式
 func (p *PayTypeCache) Load(dsn string) error {
-	p.dsn = dsn // 保存 DSN
+	p.dsn = dsn
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return err
@@ -92,7 +92,6 @@ func (p *PayTypeCache) Load(dsn string) error {
 
 // GetName 获取支付名称 (惰性加载)
 func (p *PayTypeCache) GetName(id string) string {
-	// 1. 尝试读锁获取
 	p.RLock()
 	name, ok := p.mapping[id]
 	p.RUnlock()
@@ -100,7 +99,6 @@ func (p *PayTypeCache) GetName(id string) string {
 		return name
 	}
 
-	// 2. 缓存未命中，从数据库查询
 	return p.fetchFromDB(id)
 }
 
@@ -122,7 +120,6 @@ func (p *PayTypeCache) fetchFromDB(id string) string {
 		return "未知支付方式"
 	}
 
-	// 3. 更新缓存
 	p.Lock()
 	p.mapping[id] = name
 	p.Unlock()
@@ -205,7 +202,7 @@ func (h *EventHandler) handleInsert(row []interface{}, table *schema.Table) {
 
 	tradeNo := data["trade_no"]
 	key := tradeNo + ":0"
-	
+
 	if h.notifyCache.HasNotified(key) {
 		return
 	}
@@ -225,7 +222,7 @@ func (h *EventHandler) handleUpdate(oldRow, newRow []interface{}, table *schema.
 	if oldData["status"] == "0" && newData["status"] == "1" {
 		tradeNo := newData["trade_no"]
 		key := tradeNo + ":1"
-		
+
 		if h.notifyCache.HasNotified(key) {
 			return
 		}
@@ -282,20 +279,16 @@ func sendTelegram(text string) {
 
 // getConfigPath 获取配置文件路径
 func getConfigPath() string {
-	// 1. 优先使用命令行参数
 	configPath := flag.String("c", "", "配置文件路径 (默认: config.toml)")
 	flag.Parse()
 
 	if *configPath != "" {
 		return *configPath
 	}
-
-	// 2. 检查当前目录下的 config.toml
 	if _, err := os.Stat("config.toml"); err == nil {
 		return "config.toml"
 	}
 
-	// 3. 检查可执行文件同级目录
 	exePath, err := os.Executable()
 	if err == nil {
 		exeDir := filepath.Dir(exePath)
@@ -305,31 +298,27 @@ func getConfigPath() string {
 		}
 	}
 
-	// 4. 默认返回 config.toml，让加载函数报错
 	return "config.toml"
 }
 
 func main() {
-	// 1. 加载配置
 	configPath := getConfigPath()
 	log.Printf("加载配置文件: %s", configPath)
-	
+
 	if err := loadConfig(configPath); err != nil {
 		log.Fatalf("加载配置失败: %v\n请确保配置文件存在或使用 -c 参数指定", err)
 	}
 
-	// 2. 初始化缓存
 	payCache := NewPayTypeCache()
 	notifyCache := NewNotifyCache()
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		cfg.MySQL.User, cfg.MySQL.Password, cfg.MySQL.Host, cfg.MySQL.Port, cfg.MySQL.Database)
-	
+
 	if err := payCache.Load(dsn); err != nil {
 		log.Printf("⚠️ 初始化支付方式失败: %v", err)
 	}
 
-	// 3. 配置 Canal
 	canalCfg := canal.NewDefaultConfig()
 	canalCfg.Addr = cfg.MySQL.Host + ":" + strconv.Itoa(cfg.MySQL.Port)
 	canalCfg.User = cfg.MySQL.User
@@ -345,13 +334,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// 4. 注册 EventHandler
 	c.SetEventHandler(&EventHandler{
 		payTypeCache: payCache,
 		notifyCache:  notifyCache,
 	})
 
-	// 5. 启动服务
 	pos, err := c.GetMasterPos()
 	if err != nil {
 		log.Fatal(err)
@@ -364,7 +351,6 @@ func main() {
 	}
 }
 
-// loadConfig 读取配置
 func loadConfig(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
