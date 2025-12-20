@@ -1,0 +1,17 @@
+# MySQL 数据库配置
+[mysql]
+host     = "127.0.0.1"      # 数据库地址
+port     = 3306             # 数据库端口
+user     = "root"           # 拥有 Replication Client 权限的用户
+password = "replica_pass"   # 密码
+database = "epay"           # 易支付数据库名
+table    = "pay_order"      # 订单表名
+
+# Telegram 机器人配置
+[telegram]
+bot_token = "替换为你的TG_BOT_TOKEN" # 机器人 Token
+chat_id   = "替换为你的TG_CHAT_ID"   # 接收通知的用户 ID 或群组 ID
+
+# Binlog 配置
+[binlog]
+flavor = "mysql" # 数据库类型：mysql 或 mariadb
