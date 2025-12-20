@@ -173,11 +173,11 @@ func (pm *PollerManager) runJob(job *pollJob) {
 
 		// Adaptive interval logic
 		if hasNew {
-			job.interval = maxDuration(5*time.Second, job.interval/2)
+			job.interval = maxDuration(2*time.Second, job.interval/2)
 			consecutiveErrors = 0
 		} else {
 			if time.Since(job.lastOrder) > 5*time.Minute && time.Since(job.lastSettle) > 5*time.Minute {
-				job.interval = minDuration(30*time.Second, job.interval+5*time.Second)
+				job.interval = minDuration(10*time.Second, job.interval+2*time.Second)
 			}
 		}
 
