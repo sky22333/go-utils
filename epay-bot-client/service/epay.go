@@ -31,7 +31,13 @@ func (s *EpayService) GetOrders(domain, pid, key string) ([]model.Order, error) 
 
 	reqURL := fmt.Sprintf("%s?%s", u, params.Encode())
 
-	resp, err := s.client.Get(reqURL)
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request failed: %w", err)
+	}
+	req.Header.Set("User-Agent", "EpayBot-Client/1.0 (Monitoring Settlement Status)")
+
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
