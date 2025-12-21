@@ -324,6 +324,8 @@ func main() {
 	canalCfg.User = cfg.MySQL.User
 	canalCfg.Password = cfg.MySQL.Password
 	canalCfg.Flavor = cfg.Binlog.Flavor
+	// 禁用 mysqldump
+	canalCfg.Dump.ExecutionPath = ""
 
 	canalCfg.IncludeTableRegex = []string{
 		cfg.MySQL.Database + "\\." + cfg.MySQL.Table,
