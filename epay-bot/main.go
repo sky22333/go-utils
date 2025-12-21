@@ -341,14 +341,9 @@ func main() {
 		notifyCache:  notifyCache,
 	})
 
-	pos, err := c.GetMasterPos()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	log.Println("🚀 服务已启动，开始监听 Binlog")
 
-	if err := c.RunFrom(pos); err != nil {
+	if err := c.Run(); err != nil {
 		log.Fatal(err)
 	}
 }
